@@ -11,9 +11,8 @@ namespace Sortings
     {
         private CancellationToken _ct;
         private Func<int, int, int> _splitFunk; // функция разделения массива на 2 части, выбирается в зависимости от параметра
-        internal QuikSort(int parameter, CancellationToken ct = default(CancellationToken))
-        {
-            _ct = ct;
+        internal QuikSort(int parameter)
+        {            
             switch (parameter)
             {
                 case 0:
@@ -29,6 +28,7 @@ namespace Sortings
 
         public override void Sort(int[] arr, int range = 0, CancellationToken ct = default(CancellationToken))
         {
+            _ct = ct;
             try 
             {        
                 Prepare(arr);                      
