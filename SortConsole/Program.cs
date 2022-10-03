@@ -47,26 +47,31 @@ namespace SortConsole
                     {
                         case '1':
                             PrepareExternalSorting(file, range, out blockSize, out numSize);
-                            RunExternalSorting(new ExternalMergeSort(file, numSize, blockSize));
+                            ExternalMergeSort emsort = new ExternalMergeSort(file, numSize, blockSize);
+                            emsort.OnProgress += ESort_OnProgress;
+                            RunExternalSorting(emsort);
                             break;
                         case '2':
                             PrepareExternalSorting(file, range, out blockSize, out numSize);
-                            RunExternalSorting(new RadixFileSort(file, numSize, blockSize, range));
+                            RadixFileSort rfsort = new RadixFileSort(file, numSize, blockSize, range);
+                            rfsort.OnProgress += ESort_OnProgress;
+                            RunExternalSorting(rfsort);
                             break;
                     }                  
                     
                     Console.ReadKey();
                 }
-            }
-
-                
-          
-            
-            
-            
+            }            
             
         }
 
+        private static void ESort_OnProgress(object sender, ProgressEventArgs e)
+        {
+            Console.SetCursorPosition(12, Console.CursorTop);
+            Console.Write(e.Text + "  ");
+        }
+
+       
         public static bool Work(int len, int range)
         {
             Console.WriteLine();
@@ -390,7 +395,7 @@ namespace SortConsole
             string time = sw.ElapsedMilliseconds < 5000 ?
                 $"{sw.ElapsedMilliseconds} мс"
                 : sw.Elapsed.ToString(@"hh\:mm\:ss");
-            Console.WriteLine($"{sorting} , time: {time}, outFile: {file}");
+            Console.WriteLine($"\r\n{sorting} , time: {time}, outFile: {file}");
             Console.WriteLine("---------------------------------------------");
         }
     }

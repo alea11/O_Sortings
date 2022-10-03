@@ -111,6 +111,7 @@ namespace Sortings
                     }
                 }
 
+                RaiseOnProgress($"completed preparation.");
 
                 ////////////////////////////////////////////////////////////////////////
                 // в цикле по секциям - формирование отсортированного массива (по определенной секции числа)
@@ -182,6 +183,7 @@ namespace Sortings
 
                         // пишем подготовленный блок в выходной файл
                         WriteFixBlock(arrOut, _file_Out, _numSize, blocks[writeBlockNum].poz);
+                        RaiseOnProgress($"recorded block {writeBlockNum} on section {s}");
                     }
 
                     // для первого прохода (когда в первом цикле загружали данные с основного файла) - явно задаем очередной файл, а в последующих проходах  - переключаем файлы
@@ -200,8 +202,13 @@ namespace Sortings
             }           
         }
 
+        public override string ToString()
+        {
+            return $"{_name}: Length: {N}, blockSize: {_blockSize}";
+        }
 
-        
+
+
 
         private struct BlockInfo
         {

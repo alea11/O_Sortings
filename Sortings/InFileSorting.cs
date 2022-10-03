@@ -8,7 +8,8 @@ using System.Threading.Tasks;
 namespace Sortings
 {
     public abstract class InFileSorting
-    {       
+    {
+        public event EventHandler<ProgressEventArgs> OnProgress;
 
         protected string _file_0;
         protected int _numSize;
@@ -171,6 +172,12 @@ namespace Sortings
             fs.Write(bytes, 0, numSize);
         }
 
+        protected void RaiseOnProgress(string text)
+        {
+            if (OnProgress != null)
+                OnProgress.Invoke(this, new ProgressEventArgs(text));
+        }
+
 
         class Saver
         {
@@ -211,7 +218,7 @@ namespace Sortings
             public void SaveTail() // записываем последний блок
             {
                 WriteBlock(_arrOut, _file, _numSize, ref _writePoz, _idxOut);
-            }
+            }           
 
         }
 

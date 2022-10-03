@@ -90,6 +90,9 @@ namespace Sortings
             long writePoz_1 = 0;
             long writePoz_2 = 0;
 
+            int nb = 0;
+            int blocks = (N - 1) / _blockSize + 1; //т.е. округление вверх от N/_blockSize
+
             while (readPoz < len) 
             {
                 int size = _blockSize;
@@ -111,6 +114,8 @@ namespace Sortings
                 }
 
                 parity = !parity;
+                              
+                RaiseOnProgress($"sorted {++nb} blocks from {blocks}");
             }
         }
 
@@ -172,6 +177,8 @@ namespace Sortings
             }
 
             _mergers++;
+
+            RaiseOnProgress($"merged {_mergers} pairs of sequences.");
             return saver.isMerged; // если была запись во второй файл, т.е. было разделение собираемой последовательности  - это признак необходимости продолжения сортировки
         }
 
