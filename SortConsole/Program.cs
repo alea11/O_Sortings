@@ -47,7 +47,7 @@ namespace SortConsole
                     {
                         case '1':
                             PrepareExternalSorting(file, range, out blockSize, out numSize);
-                            ExternalMergeSort emsort = new ExternalMergeSort(file, numSize, blockSize);
+                            ExternalMergeSort emsort = new ExternalMergeSort(file, numSize, blockSize, range);
                             emsort.OnProgress += ESort_OnProgress;
                             RunExternalSorting(emsort);
                             break;

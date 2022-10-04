@@ -29,9 +29,14 @@ namespace Sortings
 
         private int _mergers = 0; // к-во слияний
 
+        int _range;
 
-        public ExternalMergeSort( string file, int numSize, int blockSize) : base(file, numSize, blockSize)
+
+        public ExternalMergeSort( string file, int numSize, int blockSize, int range) : base(file, numSize, blockSize)
         { 
+            _name = "ExternalMergeSort";
+            _range = range;
+            
             _file_1 = "file_1";
             _file_2 = "file_2";
             _file_3 = "file_3";
@@ -40,9 +45,7 @@ namespace Sortings
             _file_Inp1 = _file_1;
             _file_Inp2 = _file_2;
             _file_Out1 = _file_3;
-            _file_Out2 = _file_4;
-
-            _name = "ExternalMergeSort";
+            _file_Out2 = _file_4;            
         }
 
         
@@ -80,7 +83,7 @@ namespace Sortings
 
         private void SortBlocks()
         {
-            Sorting sorting = Sorting.CreateSorting(Sorting.eAlgorithm.MergeSort); //Sorting.eAlgorithm.HeapSort   .QuikSort_Hoar
+            Sorting sorting = Sorting.CreateSorting(Sorting.eAlgorithm.RadixSort); //Sorting.eAlgorithm.HeapSort   .QuikSort_Hoar     .MergeSort
             long readPoz = 0;
             long len = new FileInfo(_file_0).Length;
             N = (int)(len / _numSize); //  к-во элементов
@@ -101,7 +104,7 @@ namespace Sortings
                 int[] arr = ReadBlock(_file_0, _numSize, ref readPoz, ref size);
 
                 // каждый блок сортируется индивидуально одним из эффективных алгоритмов, напр. QuikSort
-                sorting.Sort(arr);
+                sorting.Sort(arr, _range);
 
                 // и записываем отсортированный блок поочередно в один из входных(для следующих операций) файлов
                 if(parity == false)
