@@ -20,7 +20,7 @@ namespace Sortings
             {
                 Prepare(arr);                
 
-                int maskLen = 8; // байт (можно и 4)
+                int maskLen = 8; // байт (можно и 4 (бита) )
                 int basis = 1 << maskLen;
 
                 // определяем актуальное к-во разрядов
@@ -31,16 +31,17 @@ namespace Sortings
                 while((u >>= maskLen) != 0)
                 {
                     bits+=maskLen;
-                }       
+                }
 
+                uint mask0 = (uint)(0x1 << maskLen) - 1;
+                // цикл по секциям (диапазонам разрядов) числа
                 for (int offset = 0; offset < bits; offset += maskLen)
-                {                    
-
+                {
                     // массив подсчета количества по каждому варианту значений(в соотв. окне разрядов) - в будущем отсортированном массиве
                     int[] arrC = new int[basis];
 
                     // выделение соотв. части чисел (элементов сортируемого массива) и подсчет этих частичных значений 
-                    uint mask = ((uint)(0x1 << maskLen) - 1) << offset;
+                    uint mask = mask0 << offset;
                     for (int i = 0; i < N; i++)
                     {
                         if (ct.IsCancellationRequested)

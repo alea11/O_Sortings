@@ -17,6 +17,7 @@ namespace Sortings
         private string _file_1;
         private string _file_2;
 
+        //  те же файлы но с указанной специализацией, переключаемой при обработке очередной секции
         private string _file_Inp;
         private string _file_Out;
 
@@ -37,25 +38,24 @@ namespace Sortings
                 N = (int)(len / _numSize); //  к-во элементов
 
                 /////////////////////////////////////
-                // определяем размеры и количество блоков (по порядку, начиная с конца файла)
+                // определяем размеры и количество блоков (по порядку, начиная с НАЧАЛА файла)
                 BlockInfo[] blocks = new BlockInfo[(N - 1) / _blockSize + 1]; //т.е. округление вверх от N/_blockSize
-                long idx = N;
+                long idx = 0;
                 int j = 0;
-                while (idx > 0)
+                while (idx < N)
                 {
-                    idx -= _blockSize;
-                    if(idx >= 0)
-                    {
-                        blocks[j++] = new BlockInfo {poz = idx*_numSize, count = _blockSize, startIdx = idx };
-                    }
-                    else
-                        blocks[j] = new BlockInfo { poz = 0, count = N % _blockSize, startIdx = 0 };
+                    long rem = N - idx;
+                    int cnt = (rem < _blockSize) ? (int)rem : _blockSize;
+                    
+                    blocks[j++] = new BlockInfo { poz = idx * _numSize, count = cnt, startIdx = idx };
+                    
+                    idx += _blockSize;
                 }
 
                 /////////////////////////////////////
                 // формируем секционные маски и массив подсчета
 
-                int maskLen = 8; // байт (можно и 4)
+                int maskLen = 8; // байт (можно и 4 (бита) )
                 int basis = 1 << maskLen;
 
 
@@ -69,25 +69,26 @@ namespace Sortings
 
                 _file_Inp = _file_0;
                 _file_Out = _file_1;
-                
+
 
                 // массив подсчета количества по каждому варианту значений(в соотв. окне разрядов) 
-                long[,] arrC = new long[basis,sections];
+                long[,] arrC = new long[basis, sections];
 
                 // маски типа ffff - по секциям числа
+                uint mask0 = (uint)(0x1 << maskLen) - 1;
                 uint[] masks = new uint[sections];
-                for (int s = 0; s<sections;s++)
+                for (int s = 0; s < sections; s++)
                 {
-                    masks[s] = ((uint)(0x1 << maskLen) - 1) << (maskLen * s);
+                    masks[s] = mask0 << (maskLen * s);
                 }
 
                 // заполняем массив подсчета значений по секциям
 
                 // цикл по блокам
-                for (int readBlockNum = 0; readBlockNum < blocks.Length; readBlockNum++)
-                {                    
-                    int count = blocks[readBlockNum].count;
-                    int[] arr = ReadFixBlock(_file_Inp, _numSize, blocks[readBlockNum].poz, count);
+                for (int blockNum = 0; blockNum < blocks.Length; blockNum++)
+                {
+                    int count = blocks[blockNum].count;
+                    int[] arr = ReadFixBlock(_file_Inp, _numSize, blocks[blockNum].poz, count);
 
                     // подсчет к-ва по каждому значению, раздельно по секциям
                     for (int i = 0; i < count; i++)
@@ -100,97 +101,106 @@ namespace Sortings
                     }
                 }
 
-                // пересчет элементов массива подсчета - накопление (расчет макс. позиции +1) по каждому значению (в соотв. окне разрядов) - в будущем отсортированном массиве
+                // пересчет элементов массива подсчета - накопление (расчет СТАРТОВОЙ) по каждому значению (в соотв. окне разрядов) - в будущем отсортированном массиве
                 for (int s = 0; s < sections; s++)
                 {
                     long accumulation = 0;
                     for (int i = 0; i < basis; i++)
                     {
-                        accumulation += arrC[i, s];
+                        long t = arrC[i, s];
                         arrC[i, s] = accumulation;
+                        accumulation += t;                        
                     }
                 }
 
                 RaiseOnProgress($"completed preparation.");
 
-                ////////////////////////////////////////////////////////////////////////
+                //////////////////////////////////////////////////////////////////////// 
                 // в цикле по секциям - формирование отсортированного массива (по определенной секции числа)
-                // - в двух вложенных циклах по записываемым и загружаемым блокам
-
+                
                 _file_Inp = _file_0;
                 _file_Out = _file_1;
-                
+
                 // цикл по секциям
                 for (int s = 0; s < sections; s++)
                 {
                     int offset = s * maskLen;
 
                     // очистка выходного файла
-                    using (var fs = File.Create(_file_Out)) { }
+                    using (var fs = File.Create(_file_Out)) { }                    
 
-                    // массив для отметки использования очередного считанного из входного и полмещенного в выходной массив элемента
-                    // - для предотвращения повторного распределения элемента на следующей иттерации по выходным блокам (на каждой такой иттерации снова перебираем все входные блоки)
-                    long[] usedIdxs = new long[basis];
-                    for (int i = 0; i < basis; i++)
-                        usedIdxs[i] = -1;
+                    // цикл по считываемым блокам
+                    for (int blockNum = 0; blockNum < blocks.Length; blockNum++)
+                    {
+                        BlockInfo bi = blocks[blockNum];
+                        
+                        // читаем очередной блок (начиная с НАЧАЛА файла)
+                        int[] arr = ReadFixBlock(_file_Inp, _numSize, bi.poz, bi.count);
 
-                    // цикл по записываемым блокам
-                    for (int writeBlockNum = 0; writeBlockNum < blocks.Length; writeBlockNum++)
-                    {                        
-                        long startWriteIdx = blocks[writeBlockNum].startIdx;
-                        int count = blocks[writeBlockNum].count;
-                        long untilIdx = startWriteIdx + count;
-                        int[] arrOut = new int[count];
+                        // заполняем массив подсчета значений в блоке (для текущей секции)                        
+                        int[] arrBC = new int[basis];
 
-                        // индекс очередного считываемого элемента (по очередности считывания) - сквозной по считываемым блокам внутри иттерации по выходному блоку
-                        long idxIn = 0;
-
-                        // цикл по считываемым блокам
-                        for (int readBlockNum = 0; readBlockNum < blocks.Length; readBlockNum ++)
-                        {
-                            // читаем очередной блок (начиная с конца файла)
-                            int[] arr = ReadFixBlock(_file_Inp, _numSize, blocks[readBlockNum].poz, blocks[readBlockNum].count);
-
-                            // цикл по элементам массива считанного блока
-                            for (int i = blocks[readBlockNum].count - 1; i >= 0; i--)
-                            {
-                                // определяем макс индекс куда может быть положен элемент:
-                                // элемент
-                                int val = arr[i];
-                                // значение соотв. части элемента (в соотв. окне разрядов)
-                                int t = (int)(val & masks[s]) >> offset;
-                                // это значение - индекс в массиве подсчета. 
-                                // значение в массиве подсчета по этому индексу(с декрементом) - максимальный индекс соотв. элемента в выходном массиве. 
-                                // при этом значение в массиве подсчета уменьшается на 1 (для следующего элемента соответствующего этой же маске индекс в выходном массиве будет уменьшен)
-
-                                // но сначала проверим - не учли ли уже считанный элемент
-                                if( idxIn > usedIdxs[t])
-                                {
-                                    // - заносим в соотв. блок на запись (с учетом стартового индекса блока)
-                                    long idxOut = arrC[t, s] - 1;
-                                    if(idxOut>= startWriteIdx && idxOut< untilIdx)
-                                    {
-                                        arrOut[idxOut - startWriteIdx] = val;
-                                        arrC[t, s]--;
-                                        usedIdxs[t] = idxIn;
-                                    }
-                                }
-
-                                
-                                idxIn++;
-                            }
+                        // подсчет к-ва по каждому значению
+                        for (int i = 0; i < bi.count; i++)
+                        {                                
+                            int t = (int)(arr[i] & masks[s]) >> offset;
+                            arrBC[t]++;                                
                         }
 
-                        // пишем подготовленный блок в выходной файл
-                        WriteFixBlock(arrOut, _file_Out, _numSize, blocks[writeBlockNum].poz);
-                        RaiseOnProgress($"recorded block {writeBlockNum} on section {s}");
-                    }
+                        // пересчет элементов массива подсчета - накопление (расчет СТАРТОВОЙ) по каждому значению (в соотв. окне разрядов)                        
+                        int accumulation = 0;
+                        for (int i = 0; i < basis; i++)
+                        {
+                            int t = arrBC[i];
+                            arrBC[i] = accumulation;
+                            accumulation += t;                            
+                        }                        
 
-                    // для первого прохода (когда в первом цикле загружали данные с основного файла) - явно задаем очередной файл, а в последующих проходах  - переключаем файлы
+                        // массив для результата сортировки в пределах блока
+                        int[] arrOut = new int[arr.Length];
+
+                        // заполняем...
+
+                        // цикл по элементам массива считанного блока
+                        for (int i =  0; i < bi.count; i++)
+                        {
+                            // определяем индекс куда класть элемент:
+                            
+                            // элемент
+                            int val = arr[i];
+                            // значение соотв. части элемента (в соотв. окне разрядов)
+                            int t = (int)(val & masks[s]) >> offset;
+                            // это значение - индекс в массиве подсчета. 
+                            long idxOut = arrBC[t]++;
+                            // по найденной позиции, полученной из массива подсчета - заносим значение в массив результатов по блоку
+                            arrOut[idxOut] = val;                            
+                        }
+
+                        // после отработки массива подсчета - он содержит уже индексы начала следующего интервала (или индекс за границей - для последнего)
+
+                        // запись интервалов блока в выходной файл
+                        int startIdx = 0; //индекс стартового элемента интервала в массиве arrOut
+                        for (int i = 0; i < basis; i++)
+                        {
+                            int count = arrBC[i] - startIdx;
+                            if(count > 0)
+                            {
+                                WriteInterval(arrOut, startIdx, count, _file_Out, _numSize, arrC[i,s]*_numSize);
+                                arrC[i, s] += count;
+                                startIdx += count;
+                            }
+                        }
+                       
+
+                        RaiseOnProgress($"recorded block {blockNum} on section {s}");
+
+                    }                 
+
+                    // для первого прохода (когда в первом цикле загружали данные с основного файла) - явно задаем очередной файл, а в последующих проходах по секциям  - переключаем файлы
                     string file = s == 0 ? _file_2 : _file_Inp;
                     _file_Inp = _file_Out;
                     _file_Out = file;
-                    
+
                 }
                 return _file_Inp; // т.е. _file_Out на последнем проходе
 
@@ -199,15 +209,14 @@ namespace Sortings
             {
                 ErrMessage = exc.Message;
                 return null;
-            }           
+            }
         }
+
 
         public override string ToString()
         {
             return $"{_name}: Length: {N}, blockSize: {_blockSize}";
         }
-
-
 
 
         private struct BlockInfo
@@ -216,7 +225,6 @@ namespace Sortings
             public int count;
             public long startIdx;
         }
-
         
     }
 }

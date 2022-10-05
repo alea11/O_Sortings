@@ -12,7 +12,7 @@ namespace Sortings
         public event EventHandler<ProgressEventArgs> OnProgress;
 
         protected string _file_0;
-        protected int _numSize;
+        protected int _numSize;  // к-во байт на элемент
         protected int _blockSize; // размер блока , части массива чисел - для операций ввода-вывода 
         protected int N;
 
@@ -136,18 +136,17 @@ namespace Sortings
             }
 
             poz += count * numSize;
-        }
+        }        
 
-        internal static void WriteFixBlock(int[] arr, string file, int numSize, long poz)
-        {
-            int count = arr.Length;
+        internal static void WriteInterval(int[] arr, int startIdx, int count, string file, int numSize, long poz)
+        {            
             byte[] bytes = new byte[count * numSize];
             for (int i = 0; i < count; i++)
             {
                 // разложение числа на байты. сначала(слева) - старшие байты
                 for (int w = 0; w < numSize; w++)
                 {
-                    bytes[i * numSize + w] = (byte)(arr[i] >> (8 * (numSize - w - 1)));
+                    bytes[i * numSize + w] = (byte)(arr[i + startIdx] >> (8 * (numSize - w - 1)));
                 }
             }
 
@@ -155,21 +154,7 @@ namespace Sortings
             {
                 fs.Seek(poz, SeekOrigin.Begin);
                 fs.Write(bytes, 0, count * numSize);
-            }            
-        }
-
-        internal static void WriteNum(int num, FileStream fs, int numSize, int idx)
-        {
-            byte[] bytes = new byte[numSize];
-            
-            // разложение числа на байты. сначала(слева) - старшие байты
-            for (int w = 0; w < numSize; w++)
-            {
-                bytes[w] = (byte)(num >> (8 * (numSize - w - 1)));
             }
-
-            fs.Seek(idx * numSize, SeekOrigin.Begin);
-            fs.Write(bytes, 0, numSize);
         }
 
         protected void RaiseOnProgress(string text)

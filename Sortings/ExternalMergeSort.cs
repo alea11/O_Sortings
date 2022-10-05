@@ -244,6 +244,11 @@ namespace Sortings
 
             }
 
+            /// <summary>
+            ///  получение очередного элемента из блока. Если блок выбран полностью - подгружается следующий блок
+            /// </summary>
+            /// <param name="finish"></param>
+            /// <returns></returns>
             public int GetNext(ref bool finish)
             {
                 int val = _readParity ? _arr1[idx1++] : _arr2[idx2++];
